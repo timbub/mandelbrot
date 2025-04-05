@@ -2,7 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <time.h>
 
- int X_CENTER = 600;
+const int X_CENTER = 600;
 const int Y_CENTER = 300;
 const int WIDTH    = 1000;
 const int HEIGHT   = 1000;
@@ -20,29 +20,36 @@ int main()
 {
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Mandelbrot Set");
     sf::VertexArray points(sf::Points, WIDTH * HEIGHT);
-    for(int i = 0; i < 20; i++)
+    sf::Font font;
+    if(!font.loadFromFile("arial.ttf"))
     {
-        clock_t time_start_calculating = 0;
-        clock_t time_end_calculating = 0;
+        fprintf(stderr, "font is not load \n");
+    }
+    sf::Text fps;
+    fps.setFont(font);
+    fps.setCharacterSize(20);
+    fps.setFillColor (sf::Color::Black);
+    fps.setPosition (10, 10);
+    sf::Clock fps_clock;
 
-        time_start_calculating = clock();
-        calculating_points(&points);
-        time_end_calculating   = clock();
-        double time_calculating = ((double) (time_end_calculating - time_start_calculating)) / CLOCKS_PER_SEC;
-        printf("time calculating %f\n", time_calculating);
-
-        while (window.isOpen())
+     while (window.isOpen())
+     {
+        sf::Event event;
+        while (window.pollEvent(event))
         {
-            sf::Event event;
-            while (window.pollEvent(event))
-            {
-                if (event.type == sf::Event::Closed) window.close();
-            }
-            window.clear();
-            window.draw(points);
-            window.display();
+            if (event.type == sf::Event::Closed) window.close();
         }
-        X_CENTER += 100;
+
+        fps_clock.restart();
+        calculating_points(&points);
+        window.clear();
+        window.draw(points);
+        sf::Time iteration_time = fps_clock.getElapsedTime();
+        double fps_value = 1.0 / iteration_time.asSeconds();
+
+        fps.setString("FPS: " + std::to_string(fps_value));
+        window.draw(fps);
+        window.display();
     }
     return 0;
 }
@@ -92,4 +99,5 @@ void calculating_points(sf::VertexArray* points)
         }
     }
 }
+
 
