@@ -2,26 +2,47 @@
 #include <SFML/Graphics.hpp>
 #include <immintrin.h>
 #include <time.h>
+#include <string.h>
 
-const int X_CENTER = 600;
-const int Y_CENTER = 400;
+int X_CENTER = 600;
+int Y_CENTER = 400;
 const int WIDTH    = 800;
 const int HEIGHT   = 800;
+
+const char* BASE_MODE   = "base";
+const char* INTRIN_MODE = "intrinsics";
+
+const float  CPU_FREQ_GHz      = 2.4;
 
 const int    NUM_POINTS        = 4;
 const int    MAX_NUM_ITERATION = 256;
 const int    MAX_RADIUS        = 100;
 const float SCALE              = 0.004;
-const float dx                 = 0.004;
-const float dy                 = 0.004;
+float dx                       = 0.004;
+float dy                       = 0.004;
 
-void calculating_with_pipelining(sf::VertexArray* points);
-void calculating_with_intrinsics(sf::VertexArray* points);
+void calculating_with_pipelining(sf::Image* image);
+void calculating_with_intrinsics(sf::Image* image);
 
-int main()
+int main(int argc, char* argv[])
 {
+    printf("mode: %s\n", argv[1]);
+
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Mandelbrot Set");
-    sf::VertexArray points(sf::Points, WIDTH * HEIGHT);
+
+    sf::Image image;
+    image.create(WIDTH, HEIGHT, sf::Color::Black);
+
+    sf::Texture texture;
+    if (!texture.create(WIDTH, HEIGHT))
+    {
+        fprintf(stderr, "texture is not create\n");
+        return 1;
+    }
+
+    sf::Sprite sprite;
+    sprite.setTexture(texture);
+
     sf::Font font;
     if(!font.loadFromFile("arial.ttf"))
     {
@@ -32,32 +53,69 @@ int main()
     fps.setCharacterSize(20);
     fps.setFillColor (sf::Color::Black);
     fps.setPosition (10, 10);
-    sf::Clock fps_clock;
 
-     while (window.isOpen())
-     {
+    while (window.isOpen())
+    {
         sf::Event event;
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed) window.close();
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::A) X_CENTER -= 10;
+                if (event.key.code == sf::Keyboard::D) X_CENTER += 10;
+
+                if (event.key.code == sf::Keyboard::S) Y_CENTER += 10;
+                if (event.key.code == sf::Keyboard::W) Y_CENTER -= 10;
+
+                if (event.key.code == sf::Keyboard::V)
+                {
+                    dy += 0.0001;
+                    dx += 0.0001;
+                }
+                if (event.key.code == sf::Keyboard::C)
+                {
+                    dy -= 0.0001;
+                    dx -= 0.0001;
+                }
+            }
         }
 
-        fps_clock.restart();
-        calculating_with_pipelining(&points);
-        //calculating_with_intrinsics(&points);
-        window.clear();
-        window.draw(points);
-        sf::Time iteration_time = fps_clock.getElapsedTime();
-        float fps_value = 1.0 / iteration_time.asSeconds();
+        uint64_t time_start = __rdtsc();
+        if (argc < 2)
+        {
+            fprintf(stderr, "mode is not selected\n");
+            return 1;
+        } else
+        {
+            if (strcmp(argv[1], BASE_MODE) == 0)
+            {
+                calculating_with_pipelining(&image);
+            } else if(strcmp(argv[1], INTRIN_MODE) == 0)
+            {
+                calculating_with_intrinsics(&image);
+            } else
+            {
+                fprintf(stderr, "mode is not selected\n");
+                return 1;
+            }
+        }
 
+        texture.update(image);
+        window.clear();
+        window.draw(sprite);
+        uint64_t time_end = __rdtsc();
+        float fps_value = (CPU_FREQ_GHz * 1e9) / (time_end - time_start);
         fps.setString("FPS: " + std::to_string(fps_value));
-        window.draw(fps);
-        window.display();
+        printf("fps: %f\n", fps_value);
+
+       window.draw(fps);
+       window.display();
     }
     return 0;
 }
 
-void calculating_with_intrinsics(sf::VertexArray* points)
+void calculating_with_intrinsics(sf::Image* image)
 {
     __m256 index    =  _mm256_setr_ps(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0);
     __m256 dx_array =  _mm256_set1_ps(dx);
@@ -67,28 +125,19 @@ void calculating_with_intrinsics(sf::VertexArray* points)
     {
         float Y0 = dy*(yi - Y_CENTER);
         __m256 y0 =  _mm256_set1_ps(Y0);
-        //float y0[NUM_POINTS] = {Y0, Y0, Y0, Y0};
         for (int xi = 0; xi < WIDTH; xi += 8)
         {
             float X0 = dx*(xi - X_CENTER);
             __m256 X0_array = _mm256_set1_ps(X0);
             __m256 x0 = _mm256_add_ps(X0_array, offset);
-            //float x0[NUM_POINTS] = {X0, X0 + dx, X0 + dx*2, X0 + dx*3};
 
             __m256 y = y0;
             __m256 x = x0;
 
-            //float x[NUM_POINTS] = {}; for(int i = 0; i < NUM_POINTS; i++)  x[i] = x0[i];
-            //float y[NUM_POINTS] = {}; for(int i = 0; i < NUM_POINTS; i++)  y[i] = y0[i];
-
-           alignas(16) float output_number[8] = {};
+           alignas(32) float output_number[8] = {};
             __m256 output_number_intrinsics = _mm256_setzero_ps();
             for (int counter = 0; counter < MAX_NUM_ITERATION; counter++)
             {
-                //float x2[NUM_POINTS] = {}; for(int i = 0; i < NUM_POINTS; i++)  x2[i] = x[i]  *  x[i];
-                //float xy[NUM_POINTS] = {}; for(int i = 0; i < NUM_POINTS; i++)  xy[i] = x[i]  *  y[i];
-                //float y2[NUM_POINTS] = {}; for(int i = 0; i < NUM_POINTS; i++)  y2[i] = y[i]  *  y[i];
-                //float r2[NUM_POINTS] = {}; for(int i = 0; i < NUM_POINTS; i++)  r2[i] = x2[i] +  y2[i];
 
                 __m256 x2 =  _mm256_mul_ps(x, x);
                 __m256 xy =  _mm256_mul_ps(x, y);
@@ -96,11 +145,9 @@ void calculating_with_intrinsics(sf::VertexArray* points)
                 __m256 r2 =  _mm256_add_ps(x2, y2);
 
                 __m256 cmp_mask   = _mm256_cmp_ps(r2, r2_max, _CMP_LT_OS);
-                int check = _mm256_movemask_ps(cmp_mask);
-                //printf("check = %d \n", check);
-                if(check == 0) break;
-                //__m256i ones_array = _mm256_set1_epi32(1);
-               //__m256i result     = _mm256_and_si256(int_mask, ones_array);
+
+                if (_mm256_testz_ps(cmp_mask, cmp_mask)) break;
+
                __m256 ones_array = _mm256_set1_ps(1);
                __m256 result = _mm256_and_ps(cmp_mask, ones_array);
 
@@ -115,15 +162,14 @@ void calculating_with_intrinsics(sf::VertexArray* points)
             _mm256_store_ps(output_number, output_number_intrinsics);
             for(int i = 0; i < 8; i++)
             {
-                //printf("number %f\n", output_number[i]);
-                (*points)[yi * WIDTH +xi +i].position = sf::Vector2f(xi + i, yi);
-                (*points)[yi * WIDTH +xi +i].color    = sf::Color((sf::Uint8)(21 + output_number[i]*20), 255, (sf::Uint8)(0 + output_number[i]*20));
+                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
+                image->setPixel(xi + i, yi, color);
             }
         }
     }
 }
 
-void calculating_with_pipelining(sf::VertexArray* points)
+void calculating_with_pipelining(sf::Image* image)
 {
     for (int yi = 0; yi < HEIGHT; yi++)
     {
@@ -162,8 +208,8 @@ void calculating_with_pipelining(sf::VertexArray* points)
             }
             for(int i = 0; i < 4; i++)
             {
-                (*points)[yi * HEIGHT +xi +i].position = sf::Vector2f(xi + i, yi + i);
-                (*points)[yi * HEIGHT +xi +i].color    = sf::Color((sf::Uint8)(21 + output_number[i]*20), 255, (sf::Uint8)(0 + output_number[i]*20));
+                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
+                image->setPixel(xi, yi, color);
             }
         }
     }
