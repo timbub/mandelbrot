@@ -15,14 +15,14 @@ const char* INTRIN_MODE = "intrinsics";
 const float  CPU_FREQ_GHz      = 2.4;
 
 const int    NUM_POINTS        = 4;
-const int    MAX_NUM_ITERATION = 256;
+const int    MAX_NUM_ITERATION = 100;   //TODO <= 100
 const int    MAX_RADIUS        = 100;
 const float SCALE              = 0.004;
 float dx                       = 0.004;
 float dy                       = 0.004;
 
-void calculating_with_pipelining(sf::Image* image);
-void calculating_with_intrinsics(sf::Image* image);
+void calculating_with_pipelining(sf::Image* image); //TODO -h - help
+void calculating_with_intrinsics(sf::Image* image); //FIXME scale in center
 
 int main(int argc, char* argv[])
 {
@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
     image.create(WIDTH, HEIGHT, sf::Color::Black);
 
     sf::Texture texture;
-    if (!texture.create(WIDTH, HEIGHT))
+    if (!texture.create(WIDTH, HEIGHT)) //TODO func
     {
         fprintf(stderr, "texture is not create\n");
         return 1;
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
     }
     sf::Text fps;
     fps.setFont(font);
-    fps.setCharacterSize(20);
+    fps.setCharacterSize(20); //TODO func
     fps.setFillColor (sf::Color::Black);
     fps.setPosition (10, 10);
 
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
                 if (event.key.code == sf::Keyboard::A) X_CENTER -= 10;
                 if (event.key.code == sf::Keyboard::D) X_CENTER += 10;
 
-                if (event.key.code == sf::Keyboard::S) Y_CENTER += 10;
+                if (event.key.code == sf::Keyboard::S) Y_CENTER += 10; //TODO func
                 if (event.key.code == sf::Keyboard::W) Y_CENTER -= 10;
 
                 if (event.key.code == sf::Keyboard::V)
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
                     dy -= 0.0001;
                     dx -= 0.0001;
                 }
-            }
+            } 
         }
 
         uint64_t time_start = __rdtsc();
@@ -162,7 +162,7 @@ void calculating_with_intrinsics(sf::Image* image)
             _mm256_store_ps(output_number, output_number_intrinsics);
             for(int i = 0; i < 8; i++)
             {
-                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
+                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30)); //TODO in func
                 image->setPixel(xi + i, yi, color);
             }
         }
@@ -208,7 +208,7 @@ void calculating_with_pipelining(sf::Image* image)
             }
             for(int i = 0; i < 4; i++)
             {
-                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
+                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30)); //TODO in func
                 image->setPixel(xi, yi, color);
             }
         }
@@ -216,3 +216,5 @@ void calculating_with_pipelining(sf::Image* image)
 }
 
 
+//TODO base version
+//TODO readme
