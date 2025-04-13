@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <SFML/Graphics.hpp>
 #include <immintrin.h>
-#include <time.h>
 #include <string.h>
 
 int X_CENTER = 600;
@@ -11,110 +10,131 @@ const int HEIGHT   = 800;
 
 const char* BASE_MODE   = "base";
 const char* INTRIN_MODE = "intrinsics";
+const char* UNROLL_MODE = "unroll";
 
 const float  CPU_FREQ_GHz      = 2.4;
 
 const int    NUM_POINTS        = 4;
-const int    MAX_NUM_ITERATION = 100;   //TODO <= 100
+const int    MAX_NUM_ITERATION = 256;
 const int    MAX_RADIUS        = 100;
 const float SCALE              = 0.004;
 float dx                       = 0.004;
 float dy                       = 0.004;
 
-void calculating_with_pipelining(sf::Image* image); //TODO -h - help
-void calculating_with_intrinsics(sf::Image* image); //FIXME scale in center
+struct sfml_graphics
+{
+    sf::RenderWindow window;
+    sf::Image        image;;
+    sf::Texture      texture;
+    sf::Sprite       sprite;
+    sf::Font         font;
+    sf::Text         fps;
+
+
+};
+
+void calculating_with_unroll(sf::Image* image);
+void calculating_with_intrinsics(sf::Image* image);
+void calculating_base(sf::Image* image);
+void processing_window(struct sfml_graphics* sfml_info, int argc, char* argv[]);
+void keyboard_processing(sf::Event* event, sf::RenderWindow* window);
 
 int main(int argc, char* argv[])
 {
-    printf("mode: %s\n", argv[1]);
 
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Mandelbrot Set");
+    struct sfml_graphics sfml_info = {};
 
-    sf::Image image;
-    image.create(WIDTH, HEIGHT, sf::Color::Black);
+    sfml_info.window.create(sf::VideoMode(WIDTH, HEIGHT), "Mandelbrot Set");
+    sfml_info.image.create(WIDTH, HEIGHT, sf::Color::Black);
 
-    sf::Texture texture;
-    if (!texture.create(WIDTH, HEIGHT)) //TODO func
+    if (!sfml_info.texture.create(WIDTH, HEIGHT))
     {
         fprintf(stderr, "texture is not create\n");
         return 1;
     }
 
-    sf::Sprite sprite;
-    sprite.setTexture(texture);
+    sfml_info.sprite.setTexture(sfml_info.texture);
 
-    sf::Font font;
-    if(!font.loadFromFile("arial.ttf"))
+    if(!sfml_info.font.loadFromFile("arial.ttf"))
     {
         fprintf(stderr, "font is not load \n");
     }
-    sf::Text fps;
-    fps.setFont(font);
-    fps.setCharacterSize(20); //TODO func
-    fps.setFillColor (sf::Color::Black);
-    fps.setPosition (10, 10);
 
-    while (window.isOpen())
+    sfml_info.fps.setFont(sfml_info.font);
+    sfml_info.fps.setCharacterSize(20);
+    sfml_info.fps.setFillColor (sf::Color::Black);
+    sfml_info.fps.setPosition (10, 10);
+
+    processing_window(&sfml_info, argc, argv);
+
+
+}
+
+void processing_window(struct sfml_graphics* sfml_info, int argc, char* argv[])
+{
+    while (sfml_info->window.isOpen())
     {
         sf::Event event;
-        while (window.pollEvent(event))
+        while (sfml_info->window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed) window.close();
-            if (event.type == sf::Event::KeyPressed)
-            {
-                if (event.key.code == sf::Keyboard::A) X_CENTER -= 10;
-                if (event.key.code == sf::Keyboard::D) X_CENTER += 10;
-
-                if (event.key.code == sf::Keyboard::S) Y_CENTER += 10; //TODO func
-                if (event.key.code == sf::Keyboard::W) Y_CENTER -= 10;
-
-                if (event.key.code == sf::Keyboard::V)
-                {
-                    dy += 0.0001;
-                    dx += 0.0001;
-                }
-                if (event.key.code == sf::Keyboard::C)
-                {
-                    dy -= 0.0001;
-                    dx -= 0.0001;
-                }
-            } 
+            keyboard_processing(&event, &sfml_info->window);
         }
-
         uint64_t time_start = __rdtsc();
         if (argc < 2)
         {
-            fprintf(stderr, "mode is not selected\n");
-            return 1;
+            fprintf(stderr, "mode is not selected, write base, unroll or intrinsics\n");
         } else
         {
             if (strcmp(argv[1], BASE_MODE) == 0)
             {
-                calculating_with_pipelining(&image);
+                calculating_base(&(sfml_info->image));
             } else if(strcmp(argv[1], INTRIN_MODE) == 0)
             {
-                calculating_with_intrinsics(&image);
+                calculating_with_intrinsics(&(sfml_info->image));
+            } else if(strcmp(argv[1], UNROLL_MODE) == 0)
+            {
+                calculating_with_unroll(&(sfml_info->image));
             } else
             {
-                fprintf(stderr, "mode is not selected\n");
-                return 1;
+                fprintf(stderr, "mode is not selected, write base, unroll or intrinsics\n");
             }
         }
 
-        texture.update(image);
-        window.clear();
-        window.draw(sprite);
+        sfml_info->texture.update(sfml_info->image);
+        sfml_info->window.clear();
+        sfml_info->window.draw(sfml_info->sprite);
+
         uint64_t time_end = __rdtsc();
         float fps_value = (CPU_FREQ_GHz * 1e9) / (time_end - time_start);
-        fps.setString("FPS: " + std::to_string(fps_value));
+        sfml_info->fps.setString("FPS: " + std::to_string(fps_value));
         printf("fps: %f\n", fps_value);
 
-       window.draw(fps);
-       window.display();
+        sfml_info->window.draw(sfml_info->fps);
+        sfml_info->window.display();
     }
-    return 0;
 }
 
+void keyboard_processing(sf::Event* event, sf::RenderWindow* window)
+{
+    if (event->type == sf::Event::Closed) window->close();
+    if (event->type == sf::Event::KeyPressed)
+    {
+        if (event->key.code == sf::Keyboard::D) X_CENTER -= 10;
+        if (event->key.code == sf::Keyboard::A) X_CENTER += 10;
+        if (event->key.code == sf::Keyboard::W) Y_CENTER += 10;
+        if (event->key.code == sf::Keyboard::S) Y_CENTER -= 10;
+        if (event->key.code == sf::Keyboard::V)
+        {
+            dy += 0.00001;
+            dx += 0.00001;
+        }
+        if (event->key.code == sf::Keyboard::C)
+        {
+            dy -= 0.00001;
+            dx -= 0.00001;
+        }
+    }
+}
 void calculating_with_intrinsics(sf::Image* image)
 {
     __m256 index    =  _mm256_setr_ps(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0);
@@ -162,14 +182,14 @@ void calculating_with_intrinsics(sf::Image* image)
             _mm256_store_ps(output_number, output_number_intrinsics);
             for(int i = 0; i < 8; i++)
             {
-                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30)); //TODO in func
+                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
                 image->setPixel(xi + i, yi, color);
             }
         }
     }
 }
 
-void calculating_with_pipelining(sf::Image* image)
+void calculating_with_unroll(sf::Image* image)
 {
     for (int yi = 0; yi < HEIGHT; yi++)
     {
@@ -208,13 +228,49 @@ void calculating_with_pipelining(sf::Image* image)
             }
             for(int i = 0; i < 4; i++)
             {
-                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30)); //TODO in func
+                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
+                image->setPixel(xi+i, yi, color);
+            }
+        }
+    }
+}
+
+void calculating_base(sf::Image* image)
+{
+    for (int yi = 0; yi < HEIGHT; yi++)
+    {
+        float Y0 = dy*(yi - Y_CENTER);
+        for (int xi = 0; xi < WIDTH; xi++)
+        {
+            float X0 = dx*(xi - X_CENTER);
+
+            float x = X0;
+            float y = Y0;
+
+            int output_number = 0;
+            for (int counter = 0; counter < MAX_NUM_ITERATION; counter++)
+            {
+                float x2 = x  *  x;
+                float xy = x  *  y;
+                float y2 = y  *  y;
+                float r2= x2 +  y2;
+
+                int output_check = 0;
+                if(r2 >= MAX_RADIUS) output_check = 1;
+
+                if (output_check == 1) break;
+                if(r2 <= MAX_RADIUS) output_number++;
+
+                if (output_check == 0)
+                {
+                    x = x2 - y2 + X0;
+                    y = 2 * xy + Y0;
+                }
+
+                sf::Color color((sf::Uint8)(21 + output_number*30), 0, (sf::Uint8)(0 + output_number*30));
                 image->setPixel(xi, yi, color);
             }
         }
     }
 }
 
-
-//TODO base version
-//TODO readme
