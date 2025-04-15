@@ -15,7 +15,7 @@ const char* UNROLL_MODE = "unroll";
 const float  CPU_FREQ_GHz      = 2.4;
 
 const int    NUM_POINTS        = 4;
-const int    MAX_NUM_ITERATION = 256;
+const int    MAX_NUM_ITERATION = 100;
 const int    MAX_RADIUS        = 100;
 const float SCALE              = 0.004;
 float dx                       = 0.004;
@@ -119,10 +119,10 @@ void keyboard_processing(sf::Event* event, sf::RenderWindow* window)
     if (event->type == sf::Event::Closed) window->close();
     if (event->type == sf::Event::KeyPressed)
     {
-        if (event->key.code == sf::Keyboard::D) X_CENTER -= 10;
-        if (event->key.code == sf::Keyboard::A) X_CENTER += 10;
-        if (event->key.code == sf::Keyboard::W) Y_CENTER += 10;
-        if (event->key.code == sf::Keyboard::S) Y_CENTER -= 10;
+        if (event->key.code == sf::Keyboard::D) X_CENTER += 10;
+        if (event->key.code == sf::Keyboard::A) X_CENTER -= 10;
+        if (event->key.code == sf::Keyboard::W) Y_CENTER -= 10;
+        if (event->key.code == sf::Keyboard::S) Y_CENTER += 10;
         if (event->key.code == sf::Keyboard::V)
         {
             dy += 0.00001;
@@ -130,8 +130,8 @@ void keyboard_processing(sf::Event* event, sf::RenderWindow* window)
         }
         if (event->key.code == sf::Keyboard::C)
         {
-            dy -= 0.00001;
-            dx -= 0.00001;
+            dy -= 0.0001;
+            dx -= 0.0001;
         }
     }
 }
