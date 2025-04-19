@@ -1,43 +1,4 @@
-#include <stdio.h>
-#include <SFML/Graphics.hpp>
-#include <immintrin.h>
-#include <string.h>
-
-int X_CENTER = 600;
-int Y_CENTER = 400;
-const int WIDTH    = 800;
-const int HEIGHT   = 800;
-
-const char* BASE_MODE   = "base";
-const char* INTRIN_MODE = "intrinsics";
-const char* UNROLL_MODE = "unroll";
-
-const float  CPU_FREQ_GHz      = 2.4;
-
-const int    NUM_POINTS        = 4;
-const int    MAX_NUM_ITERATION = 100;
-const int    MAX_RADIUS        = 100;
-const float SCALE              = 0.004;
-float dx                       = 0.004;
-float dy                       = 0.004;
-
-struct sfml_graphics
-{
-    sf::RenderWindow window;
-    sf::Image        image;;
-    sf::Texture      texture;
-    sf::Sprite       sprite;
-    sf::Font         font;
-    sf::Text         fps;
-
-
-};
-
-void calculating_with_unroll(sf::Image* image);
-void calculating_with_intrinsics(sf::Image* image);
-void calculating_base(sf::Image* image);
-void processing_window(struct sfml_graphics* sfml_info, int argc, char* argv[]);
-void keyboard_processing(sf::Event* event, sf::RenderWindow* window);
+#include "mandelbrot.h"
 
 int main(int argc, char* argv[])
 {
@@ -45,7 +6,7 @@ int main(int argc, char* argv[])
     struct sfml_graphics sfml_info = {};
 
     sfml_info.window.create(sf::VideoMode(WIDTH, HEIGHT), "Mandelbrot Set");
-    sfml_info.image.create(WIDTH, HEIGHT, sf::Color::Black);
+    sfml_info.image.create(WIDTH, HEIGHT, sf::Color::White);
 
     if (!sfml_info.texture.create(WIDTH, HEIGHT))
     {
@@ -62,7 +23,7 @@ int main(int argc, char* argv[])
 
     sfml_info.fps.setFont(sfml_info.font);
     sfml_info.fps.setCharacterSize(20);
-    sfml_info.fps.setFillColor (sf::Color::Black);
+    sfml_info.fps.setFillColor (sf::Color::White);
     sfml_info.fps.setPosition (10, 10);
 
     processing_window(&sfml_info, argc, argv);
@@ -182,8 +143,7 @@ void calculating_with_intrinsics(sf::Image* image)
             _mm256_store_ps(output_number, output_number_intrinsics);
             for(int i = 0; i < 8; i++)
             {
-                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
-                image->setPixel(xi + i, yi, color);
+                set_color(image, xi+i, yi, output_number[i]);
             }
         }
     }
@@ -228,8 +188,7 @@ void calculating_with_unroll(sf::Image* image)
             }
             for(int i = 0; i < 4; i++)
             {
-                sf::Color color((sf::Uint8)(21 + output_number[i]*30), 0, (sf::Uint8)(0 + output_number[i]*30));
-                image->setPixel(xi+i, yi, color);
+                set_color(image, xi+i, yi, output_number[i]);
             }
         }
     }
@@ -267,10 +226,15 @@ void calculating_base(sf::Image* image)
                     y = 2 * xy + Y0;
                 }
 
-                sf::Color color((sf::Uint8)(21 + output_number*30), 0, (sf::Uint8)(0 + output_number*30));
-                image->setPixel(xi, yi, color);
+                set_color(image, xi, yi, output_number);
             }
         }
     }
+}
+
+void set_color(sf::Image* image, int x, int y, int n)
+{
+    sf::Color color((sf::Uint8)(21 + n*30), 0, (sf::Uint8)(0 + n*30));
+    image->setPixel(x, y, color);
 }
 
