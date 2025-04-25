@@ -29,7 +29,7 @@ Write ```make``` for create ```mandelbrot``` file
 
 Uses just 1 pixel processing per loop
 <details>
-<summary>📁 Code</summary>
+<summary> Code</summary>
 
 ```bash
 void calculating_base(sf::Image* image)
@@ -74,7 +74,7 @@ void calculating_base(sf::Image* image)
 
 ### **"unroll"**
 <details>
-<summary>📁 Code</summary>
+<summary> Code</summary>
   
 ```bash
 for (int yi = 0; yi < HEIGHT; yi++)
@@ -127,7 +127,7 @@ Processes 4 pixels at a time in one iteration of the loop
 Uses AVX (Advanced Vector Extensions) intrinsics to calculate 8 pixels in parallel using 256-bit registers. 
 
 <details>
-<summary>📁 Code</summary>
+<summary> Code</summary>
                  
 ```bash
  __m256 index    =  _mm256_setr_ps(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0);
